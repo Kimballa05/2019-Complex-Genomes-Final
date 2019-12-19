@@ -71,7 +71,11 @@ BUSCO assesses annotation completeness by measuring the number orthologs compare
 # Resources
 
 hisat2 - https://ccb.jhu.edu/software/hisat2/manual.shtml
+
 Stringtie - https://ccb.jhu.edu/software/stringtie/
+
 gffread - http://ccb.jhu.edu/software/stringtie/gff.shtml
+
 MAKER - https://www.yandell-lab.org/software/maker.html
+
 BUSCO - https://busco-archive.ezlab.org/v1/files/BUSCO_userguide.pdf
