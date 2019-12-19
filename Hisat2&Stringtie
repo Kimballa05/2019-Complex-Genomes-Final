@@ -4,6 +4,10 @@ hisat2-build [options]* <reference_in> <ht2_index_base>
     reference_in            comma-separated list of files with ref sequences
     hisat2_index_base       write ht2 data to files with this dir/basename
 
+module purge
+module load hisat2/2.1
+
+hisat2-build Arabidopsis.jelly.pilon.fasta Arabidopsis.jelly.pilon
 
 hisat2 [options]* -x <ht2-idx> {-1 <m1> -2 <m2> | -U <r>} [-S <sam>]
 
@@ -16,7 +20,10 @@ hisat2 [options]* -x <ht2-idx> {-1 <m1> -2 <m2> | -U <r>} [-S <sam>]
              Could be gzip'ed (extension: .gz) or bzip2'ed (extension: .bz2).
   <sam>      File for SAM output (default: stdout)
 
+module purge
+module load hisat2/2.1
 
+hisat2 -x $HISAT_BUILD -U heat_1h_rep2_SRX1881876_trimmed.fastq -S $alignments/heat_1h_rep2_Arabidopsis
 
 
 
@@ -39,3 +46,131 @@ stringtie --merge <mergelist.txt> -o Arabidopsis_merged.gtf -G <ref_annotation.g
 
 #gffread - convert gff or gtf files into fasta files 
 /panfs/pan.fsl.byu.edu/mapping/grp/scr/fslg_pws670/bin/gffcompare/gffcompare/gffcompare <transcript.gtf> <transcript.fasta>
+
+MAKER pipeline
+
+0.size_filter.sh
+
+fasta=Arabidopsis.jelly.pilon.fasta
+
+module purge
+module load emboss/6.6.0
+
+#you can change the size of the filter by changing the "1000" to another size.
+
+sizeseq -sequences ${fasta} -descending -outseq ordered_${fasta} && /fslhome/kalejand/bioawk/bioawk -c fastx '{ if(length($seq) > 1000) { print ">"$name; print $seq }}' ordered_${fasta} > ordered_filtered_${fasta}
+
+1.chunks_fasta.sh
+
+fasta_tool --chunks $<# of chunks> $<fasta>
+
+2.makerscript.sh
+
+This creates MAKER scripts for each fasta chunk via a for loop. Be sure to include a data directory with 
+EST evidence, protein homology evidence, and repeat library. 
+A scripts directory where each MAKER script will go to be launched will also be needed.
+
+3.merge.sh
+
+Merge all GFFs and FASTAs from each chunk into one using output from the MAKER scripts
+
+mkdir ALLGFFS
+mkdir ALLGFFS/scripts
+mkdir ALLFASTAS
+mkdir ALLFASTAS/scripts
+
+for file in *.fasta
+do
+name=`echo $file | sed 's/.fasta//'`
+cat > ./ALLGFFS/scripts/${name}.sh <<EOF
+#!/bin/bash
+#SBATCH -c 1 --mem=1gb -t 0:60:00
+
+module purge
+module load conda-pws
+module load maker_v2.31.10
+
+gff3_merge -d ./${name}.maker.output/${name}_master_datastore_index.log ${name}.all.gff -n
+EOF
+
+sbatch ./ALLGFFS/scripts/${name}.sh
+
+cat > ./ALLFASTAS/scripts/${name}.sh <<EOF
+#!/bin/bash
+
+#SBATCH -c 1 --mem=1gb -t 0:10:00
+
+module purge
+module load conda-pws
+module load maker_v2.31.10
+
+fasta_merge -d ./${name}.maker.output/${name}_master_datastore_index.log ${name}.all.maker.proteins.fasta ${name}.all.maker.transcripts.fasta ${name}.all.maker.snap_masked.proteins.fasta ${name}.all.maker.snap_masked.transcripts.fasta ${name}.all.maker.non_overlapping_ab_initio.proteins.fasta ${name}.all.maker.non_overlapping_ab_initio.transcripts.fasta
+EOF
+
+sbatch ./ALLFASTAS/scripts/${name}.sh
+
+done
+
+4.post_merge.sh
+
+#run this after you've run 3.merge.sh.  This script will merge all the clustered sequences (gff, protein, and transcript) together.
+
+gff3_merge -o Final_allscaffolds.gff *.gff
+
+cat *.all.maker.proteins.fasta > Final_allscaffolds.all.maker.proteins.fasta
+
+cat *.all.maker.transcripts.fasta  > Final_allscaffolds.all.maker.transcripts.fasta
+
+5.rename.sh
+
+#this is set of commands is changing the IDs of the genes, transcripts, and proteins to something more manageable (--prefix).  
+In this case the AT just stands for A. thalinana.
+
+maker_map_ids --prefix AT --justify 6 Final_allscaffolds.gff > Final_allscaffolds.map && map_gff_ids Final_allscaffolds.map Final_allscaffolds.gff && map_fasta_ids Fina
+l_allscaffolds.map Final_allscaffolds.all.maker.proteins.fasta && map_fasta_ids Final_allscaffolds.map Final_allscaffolds.all.maker.transcripts.fasta
+
+6.blastp.sh
+
+#you need to make a blastdb for the uniprot_sprot.fasta.  GET the latest version from: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complet
+e/uniprot_sprot.fasta.gz
+
+makeblastdb -in ${data_dir}/uniprot_sprot.fasta -input_type fasta -dbtype prot && blastp -db ${data_dir}/uniprot_sprot.fasta -query Final_allscaffolds.all.maker.protein
+s.fasta -out maker2uni.blasp -evalue 0.000001 -outfmt 6 -num_alignments 1 -seg yes -soft_masking true -lcase_masking -max_hsps 1 -num_threads 16
+
+7.maker_functional.sh
+
+maker_functional_gff ${data_dir}/uniprot_sprot.fasta maker2uni.blasp Final_allscaffolds.gff > Final_allscaffolds_functional_blast.gff && perl AED_cdf_generator.pl -b 0.
+025 Final_allscaffolds_functional_blast.gff > AED_table.txt
+
+maker_functional_fasta ${data_dir}/uniprot_sprot.fasta maker2uni.blasp Final_allscaffolds.all.maker.proteins.fasta > Final_allscaffolds.all.maker.proteins_functional_bl
+ast.fasta
+
+maker_functional_fasta ${data_dir}/uniprot_sprot.fasta maker2uni.blasp Final_allscaffolds.all.maker.transcripts.fasta > Final_allscaffolds.all.maker.transcripts_functio
+nal_blast.fasta
+
+Make sure you have AED_cdf_generator.pl and maker2uni.blasp
+
+Use BUSCO to assess annotation correctness
+
+#Add full path to assembly
+assembly=/fslhome/kalejand/fsl_groups/fslg_pws670/compute/pws670_alex/Annotation/MAKER/Final_allscaffolds.all.maker.proteins_functional_blast.fasta
+
+#Add output name
+output=output_file_protein
+
+#Add species (rice or arabidopsis)
+species=arabidopsis
+
+#Add the mode (genome, proteins, transcriptome)
+m=protein
+
+#Add the dataset (plants: embryophyta_odb10; liliopsida_odb10; solanaceae_odb10; eudicotyledons_odb10; look them up on https://busco.ezlab.org/)
+l=~/fsl_groups/fslg_pws_module/software/.conda/envs/busco/datasets/embryophyta_odb10
+
+run_BUSCO.py -i ${assembly} -o ${output}_${species} -l ${l} -m ${m} -c 1 -sp ${species} -f
+
+hisat2 - https://ccb.jhu.edu/software/hisat2/manual.shtml
+Stringtie - https://ccb.jhu.edu/software/stringtie/
+gffread - http://ccb.jhu.edu/software/stringtie/gff.shtml
+MAKER - https://www.yandell-lab.org/software/maker.html
+BUSCO - https://busco-archive.ezlab.org/v1/files/BUSCO_userguide.pdf
