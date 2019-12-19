@@ -1,0 +1,38 @@
+#hisat2
+
+hisat2-build [options]* <reference_in> <ht2_index_base>
+    reference_in            comma-separated list of files with ref sequences
+    hisat2_index_base       write ht2 data to files with this dir/basename
+
+
+hisat2 [options]* -x <ht2-idx> {-1 <m1> -2 <m2> | -U <r>} [-S <sam>]
+
+  <ht2-idx>  Index filename prefix (minus trailing .X.ht2).
+  <m1>       Files with #1 mates, paired with files in <m2>.
+             Could be gzip'ed (extension: .gz) or bzip2'ed (extension: .bz2).
+  <m2>       Files with #2 mates, paired with files in <m1>.
+             Could be gzip'ed (extension: .gz) or bzip2'ed (extension: .bz2).
+  <r>        Files with unpaired reads.
+             Could be gzip'ed (extension: .gz) or bzip2'ed (extension: .bz2).
+  <sam>      File for SAM output (default: stdout)
+
+
+
+
+
+
+#Stringtie will convert your sorted bam files into .gtf files that can be used further down the gene annotation pipeline
+
+module purge
+module load conda-pws
+module load stringtie_1.3.4
+
+stringtie $sorted_bam1 -o heat_1h_rep1_Arabidopsis.gtf -G $ref_annotation -l heat_1h_rep1 -G $ref_annotation 
+
+#Stringtie merge command
+
+module purge
+module load conda-pws
+module load stringtie_1.3.4
+
+stringtie --merge <mergelist.txt> -o Arabidopsis_merged.gtf -G <ref_annotation.gtf/gff>
