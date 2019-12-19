@@ -53,10 +53,10 @@ There are 8 scripts you will need to run in order to produce files with annotate
 BUSCO assesses annotation completeness by measuring the number orthologs compared to what you would expect for any particular organism. The following commands will run BUSCO. Note that you can change parameters such as the mode (genome, proteins, or transcriptome) and the dataset you can use depending on your species and input data type.
 
     #Add full path to assembly
-    assembly=/fslhome/kalejand/fsl_groups/fslg_pws670/compute/pws670_alex/Annotation/MAKER/Final_allscaffolds.all.maker.proteins_functional_blast.fasta
+    assembly=<genome.fasta | transcript.fasta | protein.fasta>
 
     #Add output name
-    output=output_file_protein
+    output=output_file_genome | transcript | protein
 
     #Add species (rice or arabidopsis)
     species=arabidopsis
