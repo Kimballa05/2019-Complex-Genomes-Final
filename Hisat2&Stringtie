@@ -36,3 +36,6 @@ module load conda-pws
 module load stringtie_1.3.4
 
 stringtie --merge <mergelist.txt> -o Arabidopsis_merged.gtf -G <ref_annotation.gtf/gff>
+
+#gffread - convert gff or gtf files into fasta files 
+/panfs/pan.fsl.byu.edu/mapping/grp/scr/fslg_pws670/bin/gffcompare/gffcompare/gffcompare <transcript.gtf> <transcript.fasta>
