@@ -1,8 +1,8 @@
 # hisat2
 
-hisat2-build [options]* <reference_in> <ht2_index_base>
-    reference_in            comma-separated list of files with ref sequences
-    hisat2_index_base       write ht2 data to files with this dir/basename
+    hisat2-build [options]* <reference_in> <ht2_index_base>
+        reference_in            comma-separated list of files with ref sequences
+        hisat2_index_base       write ht2 data to files with this dir/basename
 
 module purge
 module load hisat2/2.1
