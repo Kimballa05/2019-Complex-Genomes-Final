@@ -1,4 +1,4 @@
-#hisat2
+# hisat2
 
 hisat2-build [options]* <reference_in> <ht2_index_base>
     reference_in            comma-separated list of files with ref sequences
